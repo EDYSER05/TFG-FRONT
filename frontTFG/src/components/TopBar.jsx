@@ -17,7 +17,7 @@ export default function TopBar({ title }) {
     if (!userId) return;
     api.get(`/notifications?user_id=${userId}`)
       .then((res) => setNotifications(res.data.data ?? []))
-      .catch(() => {});
+      .catch(() => {}); // Si falla la carga dejaremos las notificaciones vacias
   };
 
   // Cargamos las notificaciones al montar y refrescamos cada 10 segundos

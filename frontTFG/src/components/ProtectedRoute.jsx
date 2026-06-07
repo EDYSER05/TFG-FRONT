@@ -8,12 +8,13 @@ export default function ProtectedRoute({ children, allowedRoles }) {
 
   let user = null;
   if (token && storedUser) {
+    // Intentamos parsear el usuario, si falla redirigimos al login
     try { user = JSON.parse(storedUser); } catch { /* redirige a login */ }
   }
 
   const isAdmin = user?.role?.name === 'admin';
 
-  // El admin tiene su propio panel Blade en /admin, usamos window.location para salir del SPA
+  // El admin tiene su propio panel Blade en /admin, usamos window.location para redirigir a su login
   useEffect(() => {
     if (isAdmin) window.location.href = '/admin';
   }, []);

@@ -156,7 +156,7 @@ export default function AbsenceRequests() {
                   <th className="px-5 py-3 text-left">Fin</th>
                   <th className="px-5 py-3 text-left">Comentarios</th>
                   <th className="px-5 py-3 text-left">Estado</th>
-                  <th className="px-5 py-3" />
+                  <th className="px-5 py-3 text-left">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
