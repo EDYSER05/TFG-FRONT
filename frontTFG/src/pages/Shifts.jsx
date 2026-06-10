@@ -17,8 +17,10 @@ export default function Shifts() {
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // modal: null → cerrado | 'new' → crear | objeto turno → editar
   const isEditMode = modal !== null && modal !== 'new';
 
+  // Carga los turnos disponibles de la empresa al montar el componente
   useEffect(() => {
     const fetchShifts = async () => {
       setLoading(true);
@@ -34,14 +36,20 @@ export default function Shifts() {
     fetchShifts();
   }, []);
 
+  // Abre el modal en modo creación con el formulario vacío
   const openCreate = () => { setForm(emptyForm); setFormError(''); setModal('new'); };
-  const openEdit = (s) => {
-    setForm({ name: s.name, start_time: s.start_time.slice(0, 5), end_time: s.end_time.slice(0, 5) });
+
+  // Abre el modal en modo edición precargando los datos del turno seleccionado
+  const openEdit = (shiftToEdit) => {
+    // Recortamos a HH:MM porque el backend devuelve HH:MM:SS y el input type="time" no admite segundos
+    setForm({ name: shiftToEdit.name, start_time: shiftToEdit.start_time.slice(0, 5), end_time: shiftToEdit.end_time.slice(0, 5) });
     setFormError('');
-    setModal(s);
+    setModal(shiftToEdit);
   };
+  // Cierra el modal y limpia los errores del formulario
   const closeModal = () => { setModal(null); setFormError(''); };
 
+  // Crea un turno nuevo o actualiza el existente según el modo del modal
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
@@ -49,7 +57,7 @@ export default function Shifts() {
     try {
       if (isEditMode) {
         const res = await api.patch(`/shifts/${modal.id}`, form);
-        setShifts((prev) => prev.map((s) => s.id === modal.id ? res.data.data : s));
+        setShifts((prev) => prev.map((shift) => shift.id === modal.id ? res.data.data : shift));
       } else {
         const res = await api.post('/shifts', form);
         setShifts((prev) => [...prev, res.data.data]);
@@ -62,7 +70,7 @@ export default function Shifts() {
     }
   };
 
-  const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  const inputClassName = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
 
   if (loading) {
     return (
@@ -94,16 +102,16 @@ export default function Shifts() {
               {formError && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                <input type="text" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className={inputCls} placeholder="Ej: Turno mañana" />
+                <input type="text" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className={inputClassName} placeholder="Ej: Turno mañana" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Hora inicio</label>
-                  <input type="time" required value={form.start_time} onChange={(e) => setForm((f) => ({ ...f, start_time: e.target.value }))} className={inputCls} />
+                  <input type="time" required value={form.start_time} onChange={(e) => setForm((f) => ({ ...f, start_time: e.target.value }))} className={inputClassName} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Hora fin</label>
-                  <input type="time" required value={form.end_time} onChange={(e) => setForm((f) => ({ ...f, end_time: e.target.value }))} className={inputCls} />
+                  <input type="time" required value={form.end_time} onChange={(e) => setForm((f) => ({ ...f, end_time: e.target.value }))} className={inputClassName} />
                 </div>
               </div>
               <div className="flex gap-3 pt-2">

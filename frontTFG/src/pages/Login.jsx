@@ -12,6 +12,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Si ya hay sesión activa evitamos mostrar el login
   useEffect(() => {
     if (localStorage.getItem('token')) navigate('/dashboard');
   }, [navigate]);
@@ -22,11 +23,12 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await api.post('/login', { email, password });
-      const { token, user: rawUser, must_change_password } = res.data;
+      const { token, user: basicUser, must_change_password } = res.data;
 
+      // Pedimos el usuario completo porque /login solo devuelve datos básicos sin relaciones
       const authHeader = { headers: { Authorization: `Bearer ${token}` } };
-      const userRes = await api.get(`/users/${rawUser.id}`, authHeader);
-      const fullUser = userRes.data.data ?? rawUser;
+      const userRes = await api.get(`/users/${basicUser.id}`, authHeader);
+      const fullUser = userRes.data.data ?? basicUser;
 
       let companyId = fullUser.department?.company_id ?? null;
 
@@ -35,7 +37,7 @@ export default function Login() {
         try {
           const companiesRes = await api.get('/companies', authHeader);
           const companies = companiesRes.data.data ?? [];
-          const myCompany = companies.find((c) => c.owner?.id === fullUser.id);
+          const myCompany = companies.find((company) => company.owner?.id === fullUser.id);
           if (myCompany) companyId = myCompany.id;
         } catch {/**/}
       }
@@ -48,8 +50,10 @@ export default function Login() {
 
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(fullUser));
+      // Guardamos company_id como string vacío si es null para que localStorage no guarde "null"
       localStorage.setItem('company_id', companyId !== null ? String(companyId) : '');
 
+      // Comprobamos ambas fuentes porque el backend puede devolverlo en /login o en /users/:id
       const mustChange = must_change_password || fullUser.must_change_password || false;
       navigate(mustChange ? '/cambiar-contrasena' : '/dashboard');
     } catch (err) {

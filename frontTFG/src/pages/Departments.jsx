@@ -13,7 +13,7 @@ const roleLabels = {
   employee: 'Empleado',
 };
 
-const DAY_ORDER = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const DIAS_ORDERED = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 // Modal para gestionar el horario semanal de un empleado
 function EmployeeShiftModal({ employee, shifts, days, onClose }) {
@@ -22,19 +22,19 @@ function EmployeeShiftModal({ employee, shifts, days, onClose }) {
   const [savingDay, setSavingDay] = useState(null);
   const [error, setError] = useState('');
 
-  const sortedDays = [...days].sort((a, b) => DAY_ORDER.indexOf(a.name) - DAY_ORDER.indexOf(b.name));
+  const sortedDays = [...days].sort((a, b) => DIAS_ORDERED.indexOf(a.name) - DIAS_ORDERED.indexOf(b.name));
 
   useEffect(() => {
     const fetchUserShifts = async () => {
       setLoadingShifts(true);
       try {
         const res = await api.get(`/user-shifts?user_id=${employee.id}`);
-        const raw = res.data.data ?? [];
+        const assignedShifts = res.data.data ?? [];
         const map = {};
-        days.forEach((d) => { map[d.id] = []; });
-        raw.forEach((u) => {
-          if (!map[u.day_id]) map[u.day_id] = [];
-          map[u.day_id].push(u);
+        days.forEach((day) => { map[day.id] = []; });
+        assignedShifts.forEach((userShift) => {
+          if (!map[userShift.day_id]) map[userShift.day_id] = [];
+          map[userShift.day_id].push(userShift);
         });
         setDayShifts(map);
       } catch {
@@ -51,7 +51,7 @@ function EmployeeShiftModal({ employee, shifts, days, onClose }) {
     setSavingDay(day.id); setError('');
     const existing = dayShifts[day.id] ?? [];
     try {
-      await Promise.all(existing.map((us) => api.delete(`/user-shifts/${us.id}`)));
+      await Promise.all(existing.map((userShift) => api.delete(`/user-shifts/${userShift.id}`)));
       if (newShiftId) {
         const res = await api.post('/user-shifts', { user_id: employee.id, shift_id: Number(newShiftId), day_id: day.id });
         setDayShifts((prev) => ({ ...prev, [day.id]: [res.data.data] }));
@@ -85,7 +85,7 @@ function EmployeeShiftModal({ employee, shifts, days, onClose }) {
                 <span className="w-24 text-sm text-gray-600 font-medium shrink-0">{day.name}</span>
                 <select value={current?.shift_id?.toString() ?? ''} onChange={(e) => handleChange(day, e.target.value)} disabled={isSaving} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50">
                   <option value="">Libre</option>
-                  {shifts.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)})</option>)}
+                  {shifts.map((shift) => <option key={shift.id} value={shift.id}>{shift.name} ({shift.start_time.slice(0, 5)}–{shift.end_time.slice(0, 5)})</option>)}
                 </select>
                 {isSaving && <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin shrink-0" />}
               </div>
@@ -179,7 +179,7 @@ function EditUserModal({ employee, rolesLista, deptsLista, defaultDeptId, onClos
               <label className="block text-sm font-medium text-gray-700 mb-1">Rol <span className="text-red-500">*</span></label>
               <select value={form.role_id} onChange={(e) => setForm({ ...form, role_id: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="">Selecciona un rol</option>
-                {rolesLista.map((r) => <option key={r.id} value={r.id}>{roleLabels[r.name] || r.name}</option>)}
+                {rolesLista.map((role) => <option key={role.id} value={role.id}>{roleLabels[role.name] || role.name}</option>)}
               </select>
             </div>
           </div>
@@ -188,7 +188,7 @@ function EditUserModal({ employee, rolesLista, deptsLista, defaultDeptId, onClos
               <label className="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
               <select value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="">Sin departamento</option>
-                {deptsLista.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                {deptsLista.map((dept) => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
               </select>
             </div>
             <div className="flex flex-col justify-end pb-1">
@@ -302,6 +302,7 @@ export default function Departments() {
       const res = await api.get(`/users?department_id=${dept.id}`);
       setDeptEmployees(res.data.data ?? []);
 
+      // Cargamos turnos y días solo la primera vez que se necesitan, luego se reutilizan
       if (canManageShifts && shifts.length === 0) {
         const [shiftsRes, daysRes] = await Promise.all([api.get('/shifts'), api.get('/days')]);
         setShifts(shiftsRes.data.data ?? []);
@@ -320,11 +321,11 @@ export default function Departments() {
     setBusqueda('');
   };
 
-  const baseManagers = (isSystemAdmin || !companyId ? allUsers : allUsers.filter((u) => !u.department || u.department.company_id === companyId))
-    .filter((u) => ['manager', 'owner', 'hr'].includes(u.role?.name ?? ''));
+  const baseManagers = (isSystemAdmin || !companyId ? allUsers : allUsers.filter((user) => !user.department || user.department.company_id === companyId))
+    .filter((user) => ['manager', 'owner', 'hr'].includes(user.role?.name ?? ''));
   const currentEditManager = isEditMode && modal?.manager;
   // Si el responsable actual no está en la lista filtrada (cambió de empresa), lo añadimos igual para no perderlo en el select
-  const managers = currentEditManager && !baseManagers.some((m) => m.id === currentEditManager.id)
+  const managers = currentEditManager && !baseManagers.some((manager) => manager.id === currentEditManager.id)
     ? [currentEditManager, ...baseManagers]
     : baseManagers;
 
@@ -340,7 +341,7 @@ export default function Departments() {
     try {
       if (isEditMode) {
         const res = await api.patch(`/departments/${modal.id}`, payload);
-        setDepartments((prev) => prev.map((d) => d.id === modal.id ? res.data.data : d));
+        setDepartments((prev) => prev.map((dept) => dept.id === modal.id ? res.data.data : dept));
       } else {
         const res = await api.post('/departments', payload);
         setDepartments((prev) => [...prev, res.data.data]);
@@ -355,13 +356,14 @@ export default function Departments() {
 
 
   const abrirEditar = async (emp) => {
+    // Cargamos roles y departamentos solo la primera vez; el rol 'admin' se excluye del formulario
     if (rolesLista.length === 0) {
       try {
         const [rolesRes, deptsRes] = await Promise.all([
           api.get('/roles'),
           companyId ? api.get(`/departments?company_id=${companyId}`) : api.get('/departments'),
         ]);
-        setRolesLista((rolesRes.data.data ?? []).filter((r) => r.name !== 'admin'));
+        setRolesLista((rolesRes.data.data ?? []).filter((role) => role.name !== 'admin'));
         setDeptsLista(deptsRes.data.data ?? []);
       } catch {
         // Si falla la carga dejamos las listas vacías
@@ -371,7 +373,7 @@ export default function Departments() {
   };
 
   const handleUserSaved = (updated) => {
-    setDeptEmployees((prev) => prev.map((u) => u.id === updated.id ? updated : u));
+    setDeptEmployees((prev) => prev.map((employee) => employee.id === updated.id ? updated : employee));
   };
 
   const abrirRegistro = async () => {
@@ -384,7 +386,7 @@ export default function Departments() {
           api.get('/roles'),
           companyId ? api.get(`/departments?company_id=${companyId}`) : api.get('/departments'),
         ]);
-        setRolesLista((rolesRes.data.data ?? []).filter((r) => r.name !== 'admin'));
+        setRolesLista((rolesRes.data.data ?? []).filter((role) => role.name !== 'admin'));
         setDeptsLista(deptsRes.data.data ?? []);
       } catch {
         // Si falla la carga seguimos con listas vacías
@@ -404,6 +406,7 @@ export default function Departments() {
       if (regForm.department_id) body.department_id = Number(regForm.department_id);
       const res = await api.post('/register', body);
       const nuevo = res.data.data;
+      // Solo añadimos el nuevo usuario a la tabla si pertenece al departamento que está abierto
       if (nuevo.department?.id === selectedDept?.id) {
         setDeptEmployees((prev) => [nuevo, ...prev]);
       }
@@ -416,13 +419,13 @@ export default function Departments() {
   };
 
   // El admin global ve todos; owner y hr solo ven los de su empresa
-  const visibleDepts = isSystemAdmin || !companyId ? departments : departments.filter((d) => d.company_id === companyId);
+  const visibleDepts = isSystemAdmin || !companyId ? departments : departments.filter((dept) => dept.company_id === companyId);
 
   const empleadosFiltrados = busqueda.trim() === ''
     ? deptEmployees
-    : deptEmployees.filter((u) => {
+    : deptEmployees.filter((employee) => {
         const texto = busqueda.toLowerCase();
-        return (u.name + ' ' + u.last_name).toLowerCase().includes(texto) || u.email.toLowerCase().includes(texto);
+        return (employee.name + ' ' + employee.last_name).toLowerCase().includes(texto) || employee.email.toLowerCase().includes(texto);
       });
 
   // Si hay un departamento seleccionado mostramos su lista de empleados
@@ -475,14 +478,14 @@ export default function Departments() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Rol <span className="text-red-500">*</span></label>
                     <select value={regForm.role_id} onChange={(e) => setRegForm({ ...regForm, role_id: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                       <option value="">Selecciona un rol</option>
-                      {rolesLista.map((r) => <option key={r.id} value={r.id}>{roleLabels[r.name] || r.name}</option>)}
+                      {rolesLista.map((role) => <option key={role.id} value={role.id}>{roleLabels[role.name] || role.name}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
                     <select value={regForm.department_id} onChange={(e) => setRegForm({ ...regForm, department_id: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                       <option value="">Sin departamento</option>
-                      {deptsLista.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      {deptsLista.map((dept) => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
                     </select>
                   </div>
                 </div>
@@ -623,7 +626,7 @@ export default function Departments() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
                   <select required value={form.company_id} onChange={(e) => setForm((f) => ({ ...f, company_id: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <option value="">Seleccionar empresa</option>
-                    {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
                   </select>
                 </div>
               )}
@@ -631,7 +634,7 @@ export default function Departments() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Responsable</label>
                 <select value={form.manager_id} onChange={(e) => setForm((f) => ({ ...f, manager_id: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                   <option value="">Sin responsable</option>
-                  {managers.map((m) => <option key={m.id} value={m.id}>{m.name} {m.last_name}</option>)}
+                  {managers.map((manager) => <option key={manager.id} value={manager.id}>{manager.name} {manager.last_name}</option>)}
                 </select>
               </div>
               <div className="flex gap-3 pt-2">

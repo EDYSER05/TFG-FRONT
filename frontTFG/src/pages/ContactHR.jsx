@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { MdSend, MdPeople, MdArrowBack, MdContactSupport } from 'react-icons/md';
 import api from '../api';
+import { parseDate } from '../utils/dates';
 
-function formatHour(dt) {
-  if (!dt) return '';
+function formatHour(dateTimeStr) {
+  if (!dateTimeStr) return '';
   try {
-    const [datePart, timePart = '00:00:00'] = dt.split(' ');
-    const [d, m, y] = datePart.split('-');
-    const date = new Date(`${y}-${m}-${d}T${timePart}`);
+    const date = parseDate(dateTimeStr);
     if (isNaN(date.getTime())) return '';
     return date.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
   } catch { return ''; }
@@ -30,15 +29,15 @@ function ChatEmpleado({ user, companyId }) {
     };
 
     fetchMessages().finally(() => setLoading(false));
-    // Marcar como leídos los mensajes de RRHH al abrir y avisar al Sidebar
+    // Marcar como leídos los mensajes de RRHH al abrir
     api.post('/chat-messages/mark-read', { employee_id: user.id, reader: 'employee' })
-      .then(() => window.dispatchEvent(new Event('chat-read')))
       .catch(() => {});
     // Polling cada 10 s
     const timer = setInterval(fetchMessages, 10000);
     return () => clearInterval(timer);
   }, [user.id, companyId]);
 
+  // Automaticamente hace un scroll al último mensaje cuando cambian los mensajes
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -84,14 +83,14 @@ function ChatEmpleado({ user, companyId }) {
             <p className="mt-2 text-sm">Escríbenos, estaremos encantados de ayudarte</p>
           </div>
         ) : (
-          messages.map((m) => {
-            const mine = m.sender_id === user.id;
+          messages.map((message) => {
+            const mine = message.sender_id === user.id;
             return (
-              <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+              <div key={message.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm shadow-sm ${mine ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm'}`}>
                   {!mine && <p className="text-[11px] font-semibold text-indigo-500 mb-1">Recursos Humanos</p>}
-                  <p className="leading-relaxed">{m.message}</p>
-                  <p className={`text-[10px] mt-1 ${mine ? 'text-indigo-200' : 'text-gray-400'}`}>{formatHour(m.created_at)}</p>
+                  <p className="leading-relaxed">{message.message}</p>
+                  <p className={`text-[10px] mt-1 ${mine ? 'text-indigo-200' : 'text-gray-400'}`}>{formatHour(message.created_at)}</p>
                 </div>
               </div>
             );
@@ -135,28 +134,45 @@ function ChatRRHH({ user, companyId }) {
   const [sending, setSending] = useState(false);
   const bottomRef = useRef(null);
 
-  // Carga todas las conversaciones de la empresa
+  // Carga todas las conversaciones de la empresa agrupadas por empleado
   const fetchConversations = async () => {
     try {
+      // Traemos todos los mensajes de la empresa de una sola llamada
       const res = await api.get(`/chat-messages?company_id=${companyId}`);
-      const all = res.data.data ?? [];
-      // Agrupa por employee_id
-      const map = {};
-      for (const m of all) {
-        if (!map[m.employee_id]) {
-          map[m.employee_id] = { employeeId: m.employee_id, employeeName: '', lastMessage: '', lastAt: '', unread: 0 };
+      const messages = res.data.data ?? [];
+
+      // Agrupamos los mensajes por empleado para tener una conversación por cada uno
+      const byEmployee = {};
+
+      for (const message of messages) {
+        const employeeId = message.employee_id;
+        const sentByEmployee = message.sender_id === employeeId;
+
+        // Inicializamos la entrada del empleado si es la primera vez que aparece
+        if (!byEmployee[employeeId]) {
+          byEmployee[employeeId] = { employeeId, employeeName: '', lastMessage: '', lastAt: '', unread: 0 };
         }
-        const conv = map[m.employee_id];
-        // Nombre del empleado: si el sender no es RRHH, es el empleado
-        if (m.sender_id === m.employee_id && m.sender?.name) {
-          conv.employeeName = `${m.sender.name} ${m.sender.last_name}`;
+
+        const employeeConversation = byEmployee[employeeId];
+
+        // Guardamos el nombre del empleado cuando encontramos un mensaje suyo
+        if (sentByEmployee && message.sender?.name) {
+          employeeConversation.employeeName = `${message.sender.name} ${message.sender.last_name}`;
         }
-        conv.lastMessage = m.message;
-        conv.lastAt = m.created_at;
-        // Mensaje no leído para RRHH = enviado por el empleado
-        if (!m.is_read && m.sender_id === m.employee_id) conv.unread++;
+
+        // Actualizamos el último mensaje de la conversación
+        employeeConversation.lastMessage = message.message;
+        employeeConversation.lastAt = message.created_at;
+
+        // Contamos los mensajes no leídos enviados por el empleado (pendientes de ver por RRHH)
+        if (!message.is_read && sentByEmployee) {
+          employeeConversation.unread++;
+        }
       }
-      setConversations(Object.values(map).sort((a, b) => (b.lastAt > a.lastAt ? 1 : -1)));
+
+      // Ordenamos las conversaciones por el mensaje más reciente
+      const sorted = Object.values(byEmployee).sort((a, b) => (b.lastAt > a.lastAt ? 1 : -1));
+      setConversations(sorted);
     } catch { /* ignorar */ }
   };
 
@@ -173,12 +189,11 @@ function ChatRRHH({ user, companyId }) {
     try {
       const res = await api.get(`/chat-messages?employee_id=${conv.employeeId}&company_id=${companyId}`);
       setMessages(res.data.data ?? []);
-      // Marcar como leídos y avisar al Sidebar
+      // Marcar como leídos los mensajes del empleado seleccionado
       await api.post('/chat-messages/mark-read', { employee_id: conv.employeeId, reader: 'hr' })
-        .then(() => window.dispatchEvent(new Event('chat-read')))
         .catch(() => {});
       // Actualizar unread en la lista
-      setConversations((prev) => prev.map((c) => c.employeeId === conv.employeeId ? { ...c, unread: 0 } : c));
+      setConversations((prev) => prev.map((conversation) => conversation.employeeId === conv.employeeId ? { ...conversation, unread: 0 } : conversation));
     } catch { /* ignorar */ } finally { setLoadingMsgs(false); }
   };
 
@@ -193,6 +208,7 @@ function ChatRRHH({ user, companyId }) {
     
   }, [selected]);
 
+   // Automaticamente hace un scroll al último mensaje cuando cambian los mensajes
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -231,14 +247,14 @@ function ChatRRHH({ user, companyId }) {
         <div className="flex-1 bg-gray-50 border-x border-gray-200 overflow-y-auto px-5 py-4 space-y-3 min-h-0">
           {loadingMsgs ? (
             <div className="flex justify-center py-10"><div className="w-6 h-6 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>
-          ) : messages.map((m) => {
-            const fromHR = m.sender_id !== m.employee_id;
+          ) : messages.map((message) => {
+            const fromHR = message.sender_id !== message.employee_id;
             return (
-              <div key={m.id} className={`flex ${fromHR ? 'justify-end' : 'justify-start'}`}>
+              <div key={message.id} className={`flex ${fromHR ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm shadow-sm ${fromHR ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm'}`}>
                   {!fromHR && <p className="text-[11px] font-semibold text-indigo-500 mb-1">{selected.employeeName}</p>}
-                  <p className="leading-relaxed">{m.message}</p>
-                  <p className={`text-[10px] mt-1 ${fromHR ? 'text-indigo-200' : 'text-gray-400'}`}>{formatHour(m.created_at)}</p>
+                  <p className="leading-relaxed">{message.message}</p>
+                  <p className={`text-[10px] mt-1 ${fromHR ? 'text-indigo-200' : 'text-gray-400'}`}>{formatHour(message.created_at)}</p>
                 </div>
               </div>
             );

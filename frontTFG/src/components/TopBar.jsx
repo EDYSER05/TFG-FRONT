@@ -6,35 +6,27 @@ import api from '../api';
 export default function TopBar({ title }) {
   const navigate = useNavigate();
 
-  // Estado para guardar las notificaciones del usuario
   const [notifications, setNotifications] = useState([]);
 
   // Leemos el usuario desde localStorage para saber a quién pertenecen las notificaciones
   const userId = JSON.parse(localStorage.getItem('user') || 'null')?.id;
 
-  // Función para cargar las notificaciones del usuario desde la API
   const fetchNotifications = () => {
     if (!userId) return;
     api.get(`/notifications?user_id=${userId}`)
       .then((res) => setNotifications(res.data.data ?? []))
-      .catch(() => {}); // Si falla la carga dejaremos las notificaciones vacias
+      .catch(() => {});
   };
 
-  // Cargamos las notificaciones al montar y refrescamos cada 10 segundos
+  // Cargamos al montar y refrescamos cada 10s
   useEffect(() => {
     if (!userId) return;
     fetchNotifications();
     const timer = setInterval(fetchNotifications, 10000);
-    // Escuchamos el evento que lanza la página de notificaciones al marcar como leída
-    window.addEventListener('notifications-updated', fetchNotifications);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener('notifications-updated', fetchNotifications);
-    };
+    return () => clearInterval(timer);
   }, [userId]);
 
-  // Calculamos el número de notificaciones no leídas para el badge
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const unreadCount = notifications.filter((notification) => !notification.is_read).length;
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">

@@ -16,6 +16,7 @@ function EditTimeLogModal({ log, issue, onClose, onSaved, onIssueUpdated }) {
   const handleSave = async () => {
     setSaving(true); setError('');
     try {
+      // El backend espera HH:MM:SS, el input de tiempo devuelve HH:MM
       const res = await api.patch(`/time-logs/${log.id}`, {
         check_in: checkIn ? `${checkIn}:00` : null,
         check_out: checkOut ? `${checkOut}:00` : null,
@@ -56,7 +57,7 @@ function EditTimeLogModal({ log, issue, onClose, onSaved, onIssueUpdated }) {
               </div>
               <div className="flex items-center justify-between pt-1 border-t border-amber-200">
                 <span className="text-sm text-amber-800 font-medium">{resolved ? 'Resuelta' : 'Pendiente'}</span>
-                <button type="button" onClick={() => setResolved((v) => !v)} className={`w-10 h-5 rounded-full transition-colors relative shrink-0 ${resolved ? 'bg-green-500' : 'bg-gray-300'}`}>
+                <button type="button" onClick={() => setResolved((isResolved) => !isResolved)} className={`w-10 h-5 rounded-full transition-colors relative shrink-0 ${resolved ? 'bg-green-500' : 'bg-gray-300'}`}>
                   <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${resolved ? 'translate-x-5' : ''}`} />
                 </button>
               </div>
@@ -96,7 +97,7 @@ export default function TimeLogsManagement() {
   const companyId = Number(localStorage.getItem('company_id')) || null;
   const deptId = user.department ? user.department.id : null;
 
-  const [tab, setTab] = useState('fichajes');
+  const [tab, setTab] = useState('fichajes'); // 'fichajes' | 'incidencias'
   const [allLogs, setAllLogs] = useState([]);
   const [allIssues, setAllIssues] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -139,8 +140,9 @@ export default function TimeLogsManagement() {
 
   }, []);
 
-  const pendingIssues = allIssues.filter((i) => !i.resolved);
+  const pendingIssues = allIssues.filter((issue) => !issue.resolved);
 
+  // Filtrado en cliente porque el volumen de datos por empresa es manejable
   const filteredLogs = allLogs.filter((log) => {
     if (busqueda.trim()) {
       const texto = busqueda.toLowerCase();
@@ -156,15 +158,15 @@ export default function TimeLogsManagement() {
   });
 
   const handleLogSaved = (updated) => {
-    setAllLogs((prev) => prev.map((l) => l.id === updated.id ? updated : l));
+    setAllLogs((prev) => prev.map((log) => log.id === updated.id ? updated : log));
   };
   const handleIssueUpdated = (id, resolved) => {
-    setAllIssues((prev) => prev.map((i) => i.id === id ? { ...i, resolved } : i));
+    setAllIssues((prev) => prev.map((issue) => issue.id === id ? { ...issue, resolved } : issue));
   };
 
   // badge con || undefined para que no aparezca el número cuando es 0
   const tabs = [
-    { key: 'fichajes', label: 'Fichajes', badge: allLogs.filter((l) => l.check_in && !l.check_out).length || undefined },
+    { key: 'fichajes', label: 'Fichajes', badge: allLogs.filter((log) => log.check_in && !log.check_out).length || undefined },
     { key: 'incidencias', label: 'Incidencias', badge: pendingIssues.length || undefined },
   ];
 
@@ -204,7 +206,7 @@ export default function TimeLogsManagement() {
             <MdAccessTime size={20} className="text-green-600" />
           </div>
           <div>
-            <p className="text-xl font-bold text-gray-800">{allLogs.filter((l) => l.check_in && !l.check_out).length}</p>
+            <p className="text-xl font-bold text-gray-800">{allLogs.filter((log) => log.check_in && !log.check_out).length}</p>
             <p className="text-xs text-gray-500">Fichajes en curso</p>
           </div>
         </div>
@@ -221,18 +223,18 @@ export default function TimeLogsManagement() {
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="flex border-b border-gray-100">
-          {tabs.map((t) => (
+          {tabs.map((tabItem) => (
             <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
+              key={tabItem.key}
+              onClick={() => setTab(tabItem.key)}
               className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                tab === t.key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                tab === tabItem.key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              {t.label}
-              {t.badge !== undefined && (
-                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${tab === t.key ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}>
-                  {t.badge}
+              {tabItem.label}
+              {tabItem.badge !== undefined && (
+                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${tab === tabItem.key ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}>
+                  {tabItem.badge}
                 </span>
               )}
             </button>

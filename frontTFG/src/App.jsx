@@ -20,13 +20,17 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Rutas públicas: accesibles sin sesión */}
         <Route path="/login" element={<Login />} />
         <Route path="/cambiar-contrasena" element={<ChangePassword />} />
+
+        {/* Rutas privadas: Layout actúa como shell y ProtectedRoute verifica la sesión */}
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="fichajes" element={<TimeLogs />} />
           <Route path="ausencias" element={<AbsenceRequests />} />
+          {/* Solo empleados, hr y manager: requiere tener departamento asignado */}
           <Route path="departamento" element={
             <ProtectedRoute allowedRoles={['employee', 'hr', 'manager']}>
               <MyDepartment />
@@ -39,6 +43,7 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="perfil" element={<Profile />} />
+          {/* Rutas de gestión: solo roles con permisos de supervisión */}
           <Route path="fichajes-gestion" element={
             <ProtectedRoute allowedRoles={['owner', 'manager', 'hr']}>
               <TimeLogsManagement />
@@ -65,6 +70,7 @@ function App() {
             </ProtectedRoute>
           } />
         </Route>
+        {/* Cualquier ruta desconocida manda al dashboard (ProtectedRoute se encarga si no hay sesión) */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>

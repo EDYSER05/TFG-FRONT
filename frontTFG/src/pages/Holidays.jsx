@@ -22,6 +22,7 @@ export default function Holidays() {
 
   const isEditMode = modal !== null && modal !== 'new';
 
+  // Se re-ejecuta al cambiar de año para cargar los festivos del año seleccionado
   useEffect(() => {
     const fetchHolidays = async () => {
       setLoading(true);
@@ -38,7 +39,7 @@ export default function Holidays() {
   }, [year]);
 
   const openCreate = () => { setForm(emptyForm); setFormError(''); setModal('new'); };
-  const openEdit = (h) => { setForm({ name: h.name, date: toInputDate(h.date) }); setFormError(''); setModal(h); };
+  const openEdit = (holidayToEdit) => { setForm({ name: holidayToEdit.name, date: toInputDate(holidayToEdit.date) }); setFormError(''); setModal(holidayToEdit); };
   const closeModal = () => { setModal(null); setFormError(''); };
 
   const handleSubmit = async (e) => {
@@ -48,7 +49,7 @@ export default function Holidays() {
     try {
       if (isEditMode) {
         const res = await api.patch(`/holidays/${modal.id}`, form);
-        setHolidays((prev) => prev.map((h) => h.id === modal.id ? res.data.data : h));
+        setHolidays((prev) => prev.map((holiday) => holiday.id === modal.id ? res.data.data : holiday));
       } else {
         const res = await api.post('/holidays', form);
         setHolidays((prev) => [...prev, res.data.data]);
@@ -65,7 +66,7 @@ export default function Holidays() {
     setDeleteError('');
     try {
       await api.delete(`/holidays/${id}`);
-      setHolidays((prev) => prev.filter((h) => h.id !== id));
+      setHolidays((prev) => prev.filter((holiday) => holiday.id !== id));
       setConfirmDeleteId(null);
     } catch (err) {
       setDeleteError(err.response?.data?.msg ?? 'Error al eliminar el festivo');
@@ -73,8 +74,9 @@ export default function Holidays() {
     }
   };
 
-  const sorted = [...holidays].sort((a, b) => {
-    try { return parseDate(a.date).getTime() - parseDate(b.date).getTime(); } catch { return 0; }
+  // Ordenamos cronológicamente porque la API no garantiza orden
+  const sorted = [...holidays].sort((holidayA, holidayB) => {
+    try { return parseDate(holidayA.date).getTime() - parseDate(holidayB.date).getTime(); } catch { return 0; }
   });
 
   const today = new Date();
@@ -94,9 +96,9 @@ export default function Holidays() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <button onClick={() => setYear((y) => y - 1)} className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 transition"><MdChevronLeft size={18} /></button>
+          <button onClick={() => setYear((currentYear) => currentYear - 1)} className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 transition"><MdChevronLeft size={18} /></button>
           <p className="text-sm font-semibold text-gray-700 w-28 text-center">{year} · {holidays.length} días</p>
-          <button onClick={() => setYear((y) => y + 1)} className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 transition"><MdChevronRight size={18} /></button>
+          <button onClick={() => setYear((currentYear) => currentYear + 1)} className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 transition"><MdChevronRight size={18} /></button>
         </div>
         {canManage && (
           <button onClick={openCreate} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
@@ -118,11 +120,11 @@ export default function Holidays() {
               {formError && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                <input type="text" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className={inputCls} placeholder="Ej: Día de la Constitución" />
+                <input type="text" required value={form.name} onChange={(e) => setForm((prevForm) => ({ ...prevForm, name: e.target.value }))} className={inputCls} placeholder="Ej: Día de la Constitución" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-                <input type="date" required value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} className={inputCls} />
+                <input type="date" required value={form.date} onChange={(e) => setForm((prevForm) => ({ ...prevForm, date: e.target.value }))} className={inputCls} />
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={closeModal} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancelar</button>
@@ -155,34 +157,34 @@ export default function Holidays() {
             <p className="text-sm">No hay festivos registrados para {year}</p>
           </div>
         ) : (
-          sorted.map((h) => {
+          sorted.map((holiday) => {
             let fecha = null;
             let isPast = false;
             let isToday = false;
             try {
-              fecha = parseDate(h.date);
-              const ts = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()).getTime();
-              isPast = ts < today.getTime();
-              isToday = ts === today.getTime();
+              fecha = parseDate(holiday.date);
+              const holidayMs = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()).getTime();
+              isPast = holidayMs < today.getTime();
+              isToday = holidayMs === today.getTime();
             } catch { /* ignorar error de fecha */ }
             return (
-              <div key={h.id} className={`flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors ${isPast ? 'opacity-50' : ''}`}>
+              <div key={holiday.id} className={`flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors ${isPast ? 'opacity-50' : ''}`}>
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isToday ? 'bg-indigo-100' : 'bg-orange-100'}`}>
                   <MdBeachAccess size={18} className={isToday ? 'text-indigo-600' : 'text-orange-500'} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800">{h.name}</p>
+                  <p className="text-sm font-medium text-gray-800">{holiday.name}</p>
                   <p className="text-xs text-gray-400">
                     {fecha
                       ? fecha.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-                      : h.date}
+                      : holiday.date}
                   </p>
                 </div>
                 {isToday && <span className="text-[11px] bg-indigo-100 text-indigo-600 font-semibold px-2 py-0.5 rounded-full shrink-0">hoy</span>}
                 {canManage && (
                   <div className="flex gap-1 shrink-0">
-                    <button onClick={() => openEdit(h)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"><MdEdit size={15} /></button>
-                    <button onClick={() => { setDeleteError(''); setConfirmDeleteId(h.id); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><MdDelete size={15} /></button>
+                    <button onClick={() => openEdit(holiday)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"><MdEdit size={15} /></button>
+                    <button onClick={() => { setDeleteError(''); setConfirmDeleteId(holiday.id); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><MdDelete size={15} /></button>
                   </div>
                 )}
               </div>

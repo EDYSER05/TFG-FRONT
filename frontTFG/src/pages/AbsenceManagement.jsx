@@ -37,8 +37,8 @@ export default function AbsenceManagement() {
 
   }, []);
 
-  const pendingRequests = allRequests.filter((r) => r.status === 'pending');
-  const reviewedRequests = allRequests.filter((r) => r.status !== 'pending');
+  const pendingRequests = allRequests.filter((request) => request.status === 'pending');
+  const reviewedRequests = allRequests.filter((request) => request.status !== 'pending');
 
   // Aprueba o rechaza una solicitud: crea el registro de aprobación y actualiza el estado.
   // El backend notifica automáticamente al empleado cuando el estado cambia.
@@ -48,7 +48,7 @@ export default function AbsenceManagement() {
     try {
       await api.post('/approvals', { absence_request_id: req.id, approved_by: user.id, status });
       await api.patch(`/absence-requests/${req.id}`, { status });
-      setAllRequests((prev) => prev.map((r) => r.id === req.id ? { ...r, status } : r));
+      setAllRequests((prev) => prev.map((request) => request.id === req.id ? { ...request, status } : request));
     } catch (err) {
       setApprovalError(err.response?.data?.msg ?? 'Error al procesar la solicitud');
     }

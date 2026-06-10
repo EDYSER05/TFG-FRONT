@@ -4,12 +4,12 @@ import api from '../api';
 import { getToday, parseDate, formatTime, DIAS_SEMANA, DIAS_ABREV } from '../utils/dates';
 
 function getMonday(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const mondayDate = new Date(date);
+  const weekday = mondayDate.getDay();
+  const diff = weekday === 0 ? -6 : 1 - weekday;
+  mondayDate.setDate(mondayDate.getDate() + diff);
+  mondayDate.setHours(0, 0, 0, 0);
+  return mondayDate;
 }
 
 export default function Dashboard() {
@@ -41,30 +41,30 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
-  const todayLog = timeLogs.find((l) => l.date === getToday()) ?? null;
-  const pending = absences.filter((a) => a.status === 'pending').length;
-  const approved = absences.filter((a) => a.status === 'approved').length;
+  const todayLog = timeLogs.find((log) => log.date === getToday()) ?? null;
+  const pending = absences.filter((absence) => absence.status === 'pending').length;
+  const approved = absences.filter((absence) => absence.status === 'approved').length;
 
   const shiftsByWeekday = {};
-  userShifts.forEach((us) => {
-    const dayName = days.find((d) => d.id === us.day_id)?.name ?? '';
-    const jsDay = DIAS_SEMANA[dayName];
-    if (jsDay !== undefined) {
-      if (!shiftsByWeekday[jsDay]) shiftsByWeekday[jsDay] = [];
-      shiftsByWeekday[jsDay].push(us);
+  userShifts.forEach((userShift) => {
+    const dayName = days.find((day) => day.id === userShift.day_id)?.name ?? '';
+    const weekdayIndex = DIAS_SEMANA[dayName];
+    if (weekdayIndex !== undefined) {
+      if (!shiftsByWeekday[weekdayIndex]) shiftsByWeekday[weekdayIndex] = [];
+      shiftsByWeekday[weekdayIndex].push(userShift);
     }
   });
 
   function getAbsenceForDay(date) {
-    const ts = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-    for (const abs of absences) {
-      if (abs.status === 'rejected') continue;
+    const dayMs = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+    for (const absence of absences) {
+      if (absence.status === 'rejected') continue;
       try {
-        const start = parseDate(abs.start_date);
-        const end = parseDate(abs.end_date);
-        const startTs = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
-        const endTs = new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
-        if (ts >= startTs && ts <= endTs) return abs;
+        const start = parseDate(absence.start_date);
+        const end = parseDate(absence.end_date);
+        const startMs = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
+        const endMs = new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
+        if (dayMs >= startMs && dayMs <= endMs) return absence;
       } catch {/**/}
     }
     return null;
@@ -72,21 +72,21 @@ export default function Dashboard() {
 
   const today = new Date();
   const monday = getMonday(today);
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d;
+  const weekDays = Array.from({ length: 7 }, (_, dayOffset) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + dayOffset);
+    return date;
   });
 
   const todayAbsence = getAbsenceForDay(today);
   const todayShifts = shiftsByWeekday[today.getDay()] ?? [];
-  const isWithinAnyShift = !todayAbsence && todayShifts.some((us) => {
-    if (!us.shift) return false;
+  const isWithinAnyShift = !todayAbsence && todayShifts.some((userShift) => {
+    if (!userShift.shift) return false;
     const now = new Date();
-    const [sh, sm] = us.shift.start_time.split(':').map(Number);
-    const [eh, em] = us.shift.end_time.split(':').map(Number);
+    const [startHour, startMin] = userShift.shift.start_time.split(':').map(Number);
+    const [endHour, endMin] = userShift.shift.end_time.split(':').map(Number);
     const nowMins = now.getHours() * 60 + now.getMinutes();
-    return nowMins >= sh * 60 + sm && nowMins <= eh * 60 + em;
+    return nowMins >= startHour * 60 + startMin && nowMins <= endHour * 60 + endMin;
   });
 
   // Notificación de recordatorio: una vez por día vía sessionStorage para no repetirla
@@ -100,7 +100,6 @@ export default function Dashboard() {
       message: 'Recuerda fichar la entrada. Estás dentro de tu horario de trabajo.',
     }).then(() => {
       sessionStorage.setItem(key, '1');
-      window.dispatchEvent(new Event('notifications-updated'));
     }).catch(() => {});
   }, [loading]);
 
@@ -150,9 +149,9 @@ export default function Dashboard() {
               {todayAbsence ? (
                 <p className="text-sm font-medium text-gray-400 italic">—</p>
               ) : todayShifts.length > 0 ? (
-                todayShifts.map((us, i) => (
-                  <p key={i} className="text-sm font-semibold text-gray-700">
-                    {us.shift?.start_time.slice(0, 5)} – {us.shift?.end_time.slice(0, 5)}
+                todayShifts.map((userShift, shiftIndex) => (
+                  <p key={shiftIndex} className="text-sm font-semibold text-gray-700">
+                    {userShift.shift?.start_time.slice(0, 5)} – {userShift.shift?.end_time.slice(0, 5)}
                   </p>
                 ))
               ) : (
@@ -219,10 +218,10 @@ export default function Dashboard() {
           </div>
           <div className="divide-y divide-gray-50">
             {weekDays.map((date) => {
-              const jsDay = date.getDay();
-              const shifts = shiftsByWeekday[jsDay] ?? [];
+              const weekdayIndex = date.getDay();
+              const shifts = shiftsByWeekday[weekdayIndex] ?? [];
               const isToday = date.toDateString() === today.toDateString();
-              const isWeekend = jsDay === 0 || jsDay === 6;
+              const isWeekend = weekdayIndex === 0 || weekdayIndex === 6;
               const absence = getAbsenceForDay(date);
 
               let rowBg = '';
@@ -234,7 +233,7 @@ export default function Dashboard() {
                 <div key={date.toISOString()} className={`px-5 py-3 flex items-center justify-between ${rowBg}`}>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs font-semibold w-7 ${isToday && !absence ? 'text-indigo-600' : isWeekend ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {DIAS_ABREV[jsDay]}
+                      {DIAS_ABREV[weekdayIndex]}
                     </span>
                     <span className={`text-sm ${isToday && !absence ? 'font-semibold text-indigo-700' : 'text-gray-600'}`}>
                       {date.getDate()} de {date.toLocaleDateString('es-ES', { month: 'long' })}
@@ -248,9 +247,9 @@ export default function Dashboard() {
                       </span>
                     ) : shifts.length === 0
                       ? <span className="text-xs text-gray-300">—</span>
-                      : shifts.map((us, i) => (
-                        <span key={i} className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                          {us.shift?.start_time.slice(0, 5)} – {us.shift?.end_time.slice(0, 5)}
+                      : shifts.map((userShift, shiftIndex) => (
+                        <span key={shiftIndex} className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                          {userShift.shift?.start_time.slice(0, 5)} – {userShift.shift?.end_time.slice(0, 5)}
                         </span>
                       ))
                     }
@@ -268,15 +267,15 @@ export default function Dashboard() {
           </div>
           <div className="divide-y divide-gray-50">
             {absences.length === 0 && <p className="px-5 py-4 text-sm text-gray-400">Sin solicitudes</p>}
-            {absences.slice(0, 6).map((abs) => (
-              <div key={abs.id} className="px-5 py-3 flex items-center justify-between">
+            {absences.slice(0, 6).map((absence) => (
+              <div key={absence.id} className="px-5 py-3 flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-700 font-medium">{abs.absence_type?.name ?? 'Ausencia'}</p>
-                  <p className="text-xs text-gray-400">{abs.start_date} → {abs.end_date}</p>
+                  <p className="text-sm text-gray-700 font-medium">{absence.absence_type?.name ?? 'Ausencia'}</p>
+                  <p className="text-xs text-gray-400">{absence.start_date} → {absence.end_date}</p>
                 </div>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${abs.status === 'approved' ? 'bg-green-100 text-green-700' : abs.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {abs.status === 'approved' ? <MdCheckCircle size={13} /> : abs.status === 'rejected' ? <MdCancel size={13} /> : <MdPending size={13} />}
-                  {abs.status === 'approved' ? 'Aprobada' : abs.status === 'rejected' ? 'Rechazada' : 'Pendiente'}
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${absence.status === 'approved' ? 'bg-green-100 text-green-700' : absence.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {absence.status === 'approved' ? <MdCheckCircle size={13} /> : absence.status === 'rejected' ? <MdCancel size={13} /> : <MdPending size={13} />}
+                  {absence.status === 'approved' ? 'Aprobada' : absence.status === 'rejected' ? 'Rechazada' : 'Pendiente'}
                 </span>
               </div>
             ))}

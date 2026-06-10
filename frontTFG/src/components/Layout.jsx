@@ -22,6 +22,7 @@ const titles = {
 // Layout principal: sidebar fijo a la izquierda + barra superior + área de contenido
 export default function Layout() {
   const { pathname } = useLocation();
+  // Fallback 'NexTime' para rutas no listadas en el mapa (ej: rutas dinámicas futuras)
   const title = titles[pathname] ?? 'NexTime';
 
   return (

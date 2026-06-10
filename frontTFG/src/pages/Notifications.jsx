@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdNotifications, MdDoneAll, MdCircle } from 'react-icons/md';
 import api from '../api';
+import { parseDate } from '../utils/dates';
 
-function formatDateTime(dt) {
-  if (!dt) return '—';
+function formatDateTime(dateTimeStr) {
+  if (!dateTimeStr) return '—';
   try {
-    const [datePart, timePart = '00:00:00'] = dt.split(' ');
-    const [day, month, year] = datePart.split('-');
-    const date = new Date(`${year}-${month}-${day}T${timePart}`);
+    const date = parseDate(dateTimeStr);
     if (isNaN(date.getTime())) return '—';
     return date.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
   } catch {
@@ -47,8 +46,7 @@ export default function Notifications() {
   const markAsRead = async (id) => {
     try {
       await api.patch(`/notifications/${id}/read`);
-      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n));
-      window.dispatchEvent(new Event('notifications-updated'));
+      setNotifications((prev) => prev.map((notification) => notification.id === id ? { ...notification, is_read: true } : notification));
     } catch {
       // Si falla el usuario puede intentarlo de nuevo
     }
@@ -58,21 +56,21 @@ export default function Notifications() {
     if (!user) return;
     try {
       await api.post('/notifications/read-all', { user_id: user.id });
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-      window.dispatchEvent(new Event('notifications-updated'));
+      // Actualizamos el estado local para no volver a pedir toda la lista
+      setNotifications((prev) => prev.map((notification) => ({ ...notification, is_read: true })));
     } catch {
       // Si falla el usuario puede intentarlo de nuevo
     }
   };
 
   // Determina a qué página redirige al hacer clic en una notificación según su tipo y rol
-  const getDestination = (n) => {
-    if (n.type === 'issue') return isManagement ? '/fichajes-gestion' : '/fichajes';
-    if (n.type === 'absence') return isManagement ? '/ausencias-gestion' : '/ausencias';
-    if (n.type === 'reminder') return '/fichajes';
-    if (n.type === 'message') {
+  const getDestination = (notification) => {
+    if (notification.type === 'issue') return isManagement ? '/fichajes-gestion' : '/fichajes';
+    if (notification.type === 'absence') return isManagement ? '/ausencias-gestion' : '/ausencias';
+    if (notification.type === 'reminder') return '/fichajes';
+    if (notification.type === 'message') {
       // Para notificaciones genéricas intentamos inferir la sección por palabras clave del mensaje
-      const msg = n.message.toLowerCase();
+      const msg = notification.message.toLowerCase();
       if (msg.includes('incidencia') || msg.includes('fichaje')) return isManagement ? '/fichajes-gestion' : '/fichajes';
       if (msg.includes('ausencia') || msg.includes('vacacion') || msg.includes('solicitud')) return isManagement ? '/ausencias-gestion' : '/ausencias';
       return '/dashboard';
@@ -80,13 +78,13 @@ export default function Notifications() {
     return null;
   };
 
-  const handleClick = async (n) => {
-    if (!n.is_read) await markAsRead(n.id);
-    const dest = getDestination(n);
-    if (dest) navigate(dest);
+  const handleClick = async (notification) => {
+    if (!notification.is_read) await markAsRead(notification.id);
+    const destination = getDestination(notification);
+    if (destination) navigate(destination);
   };
 
-  const unread = notifications.filter((n) => !n.is_read).length;
+  const unread = notifications.filter((notification) => !notification.is_read).length;
 
   if (loading) {
     return (
@@ -117,28 +115,28 @@ export default function Notifications() {
             <p className="mt-2 text-sm">Sin notificaciones</p>
           </div>
         ) : (
-          notifications.map((n) => {
-            const isClickable = !!getDestination(n);
+          notifications.map((notification) => {
+            const isClickable = !!getDestination(notification);
             return (
               <div
-                key={n.id}
-                onClick={() => isClickable && handleClick(n)}
-                className={`flex items-start gap-4 px-5 py-4 transition-colors ${!n.is_read ? 'bg-indigo-50/50' : ''} ${isClickable ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                key={notification.id}
+                onClick={() => isClickable && handleClick(notification)}
+                className={`flex items-start gap-4 px-5 py-4 transition-colors ${!notification.is_read ? 'bg-indigo-50/50' : ''} ${isClickable ? 'cursor-pointer hover:bg-gray-50' : ''}`}
               >
                 <div className="mt-1 shrink-0">
-                  {!n.is_read
+                  {!notification.is_read
                     ? <MdCircle size={8} className="text-indigo-600" />
                     : <div className="w-2 h-2 rounded-full bg-gray-200" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm ${!n.is_read ? 'text-gray-800 font-medium' : 'text-gray-600'}`}>
-                    {n.message}
+                  <p className={`text-sm ${!notification.is_read ? 'text-gray-800 font-medium' : 'text-gray-600'}`}>
+                    {notification.message}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">{formatDateTime(n.created_at)}</p>
+                  <p className="text-xs text-gray-400 mt-1">{formatDateTime(notification.created_at)}</p>
                 </div>
-                {!n.is_read && (
+                {!notification.is_read && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); markAsRead(n.id); }}
+                    onClick={(e) => { e.stopPropagation(); markAsRead(notification.id); }}
                     className="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition shrink-0"
                   >
                     Marcar leída

@@ -18,6 +18,7 @@ export default function ChangePassword() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Si no hay sesión no tiene sentido mostrar el formulario
   useEffect(() => {
     if (!token || !storedUser) navigate('/login');
   }, [navigate, storedUser, token]);
@@ -53,12 +54,9 @@ export default function ChangePassword() {
 
       navigate('/dashboard');
     } catch (err) {
-      const errors = err.response?.data?.errors;
-      if (errors && errors.password) {
-        setError(errors.password[0]);
-      } else {
-        setError(err.response?.data?.msg ?? 'Error al cambiar la contraseña');
-      }
+      // El backend puede devolver errores de validación en errors.password o un mensaje general en msg
+      const genericError = err.response?.data?.msg ?? 'Error al cambiar la contraseña';
+      setError(genericError);
     } finally {
       setLoading(false);
     }
@@ -103,7 +101,7 @@ export default function ChangePassword() {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword((v) => !v)}
+                  onClick={() => setShowPassword((isVisible) => !isVisible)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {showPassword ? <MdVisibilityOff size={18} /> : <MdVisibility size={18} />}
@@ -126,7 +124,7 @@ export default function ChangePassword() {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowConfirm((v) => !v)}
+                  onClick={() => setShowConfirm((isVisible) => !isVisible)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {showConfirm ? <MdVisibilityOff size={18} /> : <MdVisibility size={18} />}

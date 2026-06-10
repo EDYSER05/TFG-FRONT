@@ -17,36 +17,37 @@ export default function Profile() {
   const role = user ? user.role.name : '';
 
   // Estado del formulario de cambio de contraseña
-  const [pwForm, setPwForm] = useState({ password: '', password_confirmation: '' });
-  const [pwError, setPwError] = useState('');
-  const [pwSuccess, setPwSuccess] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ password: '', password_confirmation: '' });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Si el admin forzó el cambio de contraseña mostramos un aviso en la parte superior
   const mustChange = user ? user.must_change_password : false;
 
   // Función para gestionar el cambio de contraseña del usuario
   const handlePasswordChange = async (e) => {
     e.preventDefault();
-    setPwError('');
-    setPwSuccess(false);
-    if (pwForm.password !== pwForm.password_confirmation) {
-      setPwError('Las contraseñas no coinciden');
+    setPasswordError('');
+    setPasswordSuccess(false);
+    if (passwordForm.password !== passwordForm.password_confirmation) {
+      setPasswordError('Las contraseñas no coinciden');
       return;
     }
-    if (pwForm.password.length < 8) {
-      setPwError('La contraseña debe tener al menos 8 caracteres');
+    if (passwordForm.password.length < 8) {
+      setPasswordError('La contraseña debe tener al menos 8 caracteres');
       return;
     }
     setSubmitting(true);
     try {
       await api.patch('/change-password', {
-        password: pwForm.password,
-        password_confirmation: pwForm.password_confirmation,
+        password: passwordForm.password,
+        password_confirmation: passwordForm.password_confirmation,
       });
-      setPwSuccess(true);
-      setPwForm({ password: '', password_confirmation: '' });
+      setPasswordSuccess(true);
+      setPasswordForm({ password: '', password_confirmation: '' });
     } catch (err) {
-      setPwError(err.response?.data?.msg ?? 'Error al cambiar la contraseña');
+      setPasswordError(err.response?.data?.msg ?? 'Error al cambiar la contraseña');
     } finally {
       setSubmitting(false);
     }
@@ -86,6 +87,7 @@ export default function Profile() {
             { label: 'Email', value: user ? user.email : '—' },
             { label: 'Rol', value: roleLabels[role] || role },
             { label: 'Fecha de contratación', value: user && user.hire_date ? user.hire_date : '—' },
+            // last_login_at lo actualiza el backend en cada login exitoso
             { label: 'Último acceso', value: user && user.last_login_at ? user.last_login_at : '—' },
           ].map(({ label, value }) => (
             <div key={label} className="bg-gray-50 rounded-lg p-3">
@@ -102,14 +104,14 @@ export default function Profile() {
           <h4 className="font-semibold text-gray-800">Cambiar contraseña</h4>
         </div>
 
-        {pwSuccess && (
+        {passwordSuccess && (
           <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-center gap-2">
             <MdCheckCircle size={16} /> Contraseña actualizada correctamente
           </div>
         )}
-        {pwError && (
+        {passwordError && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {pwError}
+            {passwordError}
           </div>
         )}
 
@@ -122,8 +124,8 @@ export default function Profile() {
               type="password"
               required
               minLength={8}
-              value={pwForm.password}
-              onChange={(e) => setPwForm((f) => ({ ...f, password: e.target.value }))}
+              value={passwordForm.password}
+              onChange={(e) => setPasswordForm((prevForm) => ({ ...prevForm, password: e.target.value }))}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
               placeholder="Mínimo 8 caracteres"
             />
@@ -136,8 +138,8 @@ export default function Profile() {
               type="password"
               required
               minLength={8}
-              value={pwForm.password_confirmation}
-              onChange={(e) => setPwForm((f) => ({ ...f, password_confirmation: e.target.value }))}
+              value={passwordForm.password_confirmation}
+              onChange={(e) => setPasswordForm((prevForm) => ({ ...prevForm, password_confirmation: e.target.value }))}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
               placeholder="Repite la contraseña"
             />

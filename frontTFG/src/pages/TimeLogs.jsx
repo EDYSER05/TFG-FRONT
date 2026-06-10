@@ -76,7 +76,7 @@ function IssueModal({ log, user, onClose }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de incidencia</label>
               <select value={issueTypeId} onChange={(e) => setIssueTypeId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="">Seleccionar tipo</option>
-                {issueTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {issueTypes.map((issueType) => <option key={issueType.id} value={issueType.id}>{issueType.name}</option>)}
               </select>
             </div>
             <div>
@@ -131,8 +131,9 @@ export default function TimeLogs() {
   }, []);
 
   // Buscamos el fichaje de hoy para mostrar el estado actual
-  const todayLog = logs.find((l) => l.date === getToday()) ?? null;
+  const todayLog = logs.find((log) => log.date === getToday()) ?? null;
 
+  // Paginación local: los datos llegan todos de una vez desde la API
   const totalPages = Math.ceil(logs.length / PER_PAGE);
   const paginatedLogs = logs.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
@@ -176,7 +177,8 @@ export default function TimeLogs() {
     setError('');
     try {
       const res = await api.patch(`/time-logs/${todayLog.id}`, { check_out: getNow() });
-      setLogs((prev) => prev.map((l) => l.id === todayLog.id ? res.data.data : l));
+      // Actualizamos solo el registro de hoy sin volver a pedir toda la lista
+      setLogs((prev) => prev.map((log) => log.id === todayLog.id ? res.data.data : log));
     } catch (err) {
       setError(err.response?.data?.msg ?? 'Error al fichar salida');
     } finally {
@@ -286,10 +288,10 @@ export default function TimeLogs() {
             <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
               <span className="text-xs text-gray-400">{logs.length} registros · página {page} de {totalPages}</span>
               <div className="flex items-center gap-1">
-                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition">
+                <button onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))} disabled={page === 1} className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition">
                   <MdChevronLeft size={16} />
                 </button>
-                <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition">
+                <button onClick={() => setPage((currentPage) => Math.min(totalPages, currentPage + 1))} disabled={page === totalPages} className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition">
                   <MdChevronRight size={16} />
                 </button>
               </div>

@@ -63,7 +63,7 @@ export default function Sidebar() {
   const [unreadChat, setUnreadChat] = useState(0);
 
   useEffect(() => {
-    // Leemos desde localStorage dentro del efecto para no declarar dependencias externas
+    // Leemos desde localStorage dentro del efecto para evitar dependencias externas al array vacío
     const u = JSON.parse(localStorage.getItem('user') || 'null');
     const cId = localStorage.getItem('company_id');
     const r = u?.role?.name ?? '';
@@ -80,14 +80,14 @@ export default function Sidebar() {
           .then((res) => {
             const msgs = res.data.data ?? [];
             // sender_id !== u.id significa que el mensaje lo mandó RRHH, no el empleado
-            setUnreadChat(msgs.filter((m) => !m.is_read && m.sender_id !== u.id).length);
+            setUnreadChat(msgs.filter((message) => !message.is_read && message.sender_id !== u.id).length);
           })
           .catch(() => {});
       } else {
         api.get(`/chat-messages?company_id=${cId}`)
           .then((res) => {
             const msgs = res.data.data ?? [];
-            setUnreadChat(msgs.filter((m) => !m.is_read && m.sender_id === m.employee_id).length);
+            setUnreadChat(msgs.filter((message) => !message.is_read && message.sender_id === message.employee_id).length);
           })
           .catch(() => {});
       }
@@ -95,9 +95,7 @@ export default function Sidebar() {
 
     fetchUnread();
     const timer = setInterval(fetchUnread, 10000);
-    // 'chat-read' lo dispara ContactHR al marcar mensajes como leídos
-    window.addEventListener('chat-read', fetchUnread);
-    return () => { clearInterval(timer); window.removeEventListener('chat-read', fetchUnread); };
+    return () => clearInterval(timer);
   }, []);
 
   const menuGestion = gestionItems.filter((item) => !item.roles || item.roles.includes(role));
@@ -107,6 +105,7 @@ export default function Sidebar() {
       await api.post('/logout');
     } catch {/**/}
     finally {
+      // Limpiamos siempre aunque el endpoint falle para no dejar sesión huérfana
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('company_id');
@@ -125,6 +124,7 @@ export default function Sidebar() {
         {personalItems
           .filter((item) => {
             if (item.roles && !item.roles.includes(role)) return false;
+            // requiresDept oculta "Mi Departamento" si el usuario no tiene departamento asignado
             if (item.requiresDept && !deptId) return false;
             return true;
           })

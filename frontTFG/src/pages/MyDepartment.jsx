@@ -3,7 +3,7 @@ import {
   MdApartment, MdBusiness, MdEmail, MdGroup, MdEventBusy,
 } from 'react-icons/md';
 import api from '../api';
-import { DIAS_SEMANA } from '../utils/dates';
+import { DIAS_SEMANA, parseDate } from '../utils/dates';
 
 const roleLabels = {
   admin: 'Administrador',
@@ -21,8 +21,8 @@ const roleColors = {
   employee: 'bg-gray-100 text-gray-600',
 };
 
-function initials(u) {
-  return `${u.name.charAt(0)}${u.last_name.charAt(0)}`.toUpperCase();
+function initials(user) {
+  return `${user.name.charAt(0)}${user.last_name.charAt(0)}`.toUpperCase();
 }
 
 // Devuelve el estado de un compañero para hoy: si está de ausencia, trabajando, o libre
@@ -30,14 +30,11 @@ function getMemberStatus(userId, allAbsences, shiftsByUser) {
   const todayDate = new Date();
   todayDate.setHours(0, 0, 0, 0);
 
-  const absence = allAbsences.find((a) => {
-    if (a.status === 'rejected' || a.user_id !== userId) return false;
+  const absence = allAbsences.find((absence) => {
+    if (absence.status === 'rejected' || absence.user_id !== userId) return false;
     try {
-      // El backend devuelve las fechas en formato dd-mm-yyyy, reordenamos para crear el Date
-      const [sd, sm, sy] = a.start_date.split('-');
-      const [ed, em, ey] = a.end_date.split('-');
-      const start = new Date(`${sy}-${sm}-${sd}`);
-      const end = new Date(`${ey}-${em}-${ed}`);
+      const start = parseDate(absence.start_date);
+      const end = parseDate(absence.end_date);
       return todayDate >= start && todayDate <= end;
     } catch { return false; }
   });
@@ -47,10 +44,10 @@ function getMemberStatus(userId, allAbsences, shiftsByUser) {
   }
 
   const shifts = shiftsByUser[userId] ?? [];
-  // us.day.js es el número de día JS (0=Dom...6=Sáb) que calculamos al cargar los datos
-  const todayShifts = shifts.filter((us) => us.day?.js === new Date().getDay());
+  // userShift.day.js es el número de día JS (0=Dom...6=Sáb) que calculamos al cargar los datos
+  const todayShifts = shifts.filter((userShift) => userShift.day?.js === new Date().getDay());
   if (todayShifts.length > 0) {
-    const times = todayShifts.map((us) => `${us.shift?.start_time.slice(0, 5)}–${us.shift?.end_time.slice(0, 5)}`).join(', ');
+    const times = todayShifts.map((userShift) => `${userShift.shift?.start_time.slice(0, 5)}–${userShift.shift?.end_time.slice(0, 5)}`).join(', ');
     return { type: 'working', times };
   }
 
@@ -102,13 +99,14 @@ export default function MyDepartment() {
         setAllAbsences(absRes.data.data ?? []);
 
         const days = daysRes.data.data ?? [];
+        // Construimos un mapa user_id → turnos enriquecidos con el número de día JS para filtrar por hoy
         const byUser = {};
-        for (const us of shiftsRes.data.data ?? []) {
-          const dayName = days.find((d) => d.id === us.day_id)?.name ?? '';
+        for (const userShift of shiftsRes.data.data ?? []) {
+          const dayName = days.find((day) => day.id === userShift.day_id)?.name ?? '';
           const jsDay = DIAS_SEMANA[dayName];
-          const entry = { ...us, day: { ...us.day, js: jsDay } };
-          if (!byUser[us.user_id]) byUser[us.user_id] = [];
-          byUser[us.user_id].push(entry);
+          const entry = { ...userShift, day: { ...userShift.day, js: jsDay } };
+          if (!byUser[userShift.user_id]) byUser[userShift.user_id] = [];
+          byUser[userShift.user_id].push(entry);
         }
         setShiftsByUser(byUser);
       } catch {
@@ -171,31 +169,31 @@ export default function MyDepartment() {
             {coworkers.length === 0 && (
               <div className="flex justify-center py-10 text-gray-400 text-sm">Sin compañeros registrados</div>
             )}
-            {coworkers.map((c) => {
-              const memberStatus = getMemberStatus(c.id, allAbsences, shiftsByUser);
+            {coworkers.map((coworker) => {
+              const memberStatus = getMemberStatus(coworker.id, allAbsences, shiftsByUser);
               return (
-                <div key={c.id} className="px-5 py-3.5 flex items-center gap-4">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${c.id === user.id ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700'}`}>
-                    {initials(c)}
+                <div key={coworker.id} className="px-5 py-3.5 flex items-center gap-4">
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${coworker.id === user.id ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700'}`}>
+                    {initials(coworker)}
                   </div>
 
                   {/* Nombre y email */}
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-800 text-sm">
-                      {c.name} {c.last_name}
-                      {c.id === user.id && <span className="ml-2 text-xs text-indigo-500 font-normal">(tú)</span>}
+                      {coworker.name} {coworker.last_name}
+                      {coworker.id === user.id && <span className="ml-2 text-xs text-indigo-500 font-normal">(tú)</span>}
                     </p>
                     <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
                       <MdEmail size={12} />
-                      <span className="truncate">{c.email}</span>
+                      <span className="truncate">{coworker.email}</span>
                     </div>
                   </div>
 
                   {/* Badges: rol + estado hoy */}
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    {c.role && (
-                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${roleColors[c.role.name] ?? 'bg-gray-100 text-gray-600'}`}>
-                        {roleLabels[c.role.name] ?? c.role.name}
+                    {coworker.role && (
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${roleColors[coworker.role.name] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {roleLabels[coworker.role.name] ?? coworker.role.name}
                       </span>
                     )}
                     <StatusBadge status={memberStatus} />

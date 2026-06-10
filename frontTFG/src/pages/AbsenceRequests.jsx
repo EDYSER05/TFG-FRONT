@@ -52,7 +52,7 @@ export default function AbsenceRequests() {
   const cancelarSolicitud = async (id) => {
     try {
       await api.delete(`/absence-requests/${id}`);
-      setRequests((prev) => prev.filter((r) => r.id !== id));
+      setRequests((prev) => prev.filter((request) => request.id !== id));
     } catch {
       // Si falla no hacemos nada, el usuario puede intentarlo de nuevo
     }
@@ -62,6 +62,7 @@ export default function AbsenceRequests() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
+    // Validación de rango en cliente para dar feedback inmediato antes de llamar a la API
     if (new Date(form.end_date) < new Date(form.start_date)) {
       setFormError('La fecha de fin no puede ser anterior a la de inicio');
       return;
@@ -114,7 +115,7 @@ export default function AbsenceRequests() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de ausencia</label>
                 <select required value={form.absence_type_id} onChange={(e) => setForm((f) => ({ ...f, absence_type_id: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                   <option value="">Seleccionar tipo</option>
-                  {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  {types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
