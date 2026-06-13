@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MdAccessTime, MdVisibility, MdVisibilityOff } from 'react-icons/md';
+import { MdVisibility, MdVisibilityOff } from 'react-icons/md';
 import api from '../api';
 
 export default function Login() {
@@ -42,9 +42,10 @@ export default function Login() {
         } catch {/**/}
       }
 
-      // El admin usa el panel Blade en /admin, no este SPA
+      // El admin usa el panel Blade en /admin
       if (fullUser.role?.name === 'admin') {
-        window.location.href = '/admin';
+        // El panel admin es Laravel/Blade en el backend (puerto 8000)
+        window.location.href = 'http://localhost:8000/admin';
         return;
       }
 
@@ -67,11 +68,7 @@ export default function Login() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4">
-            <MdAccessTime size={32} className="text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-white">NexTime</h1>
-          <p className="text-slate-400 mt-1">Gestión de control horario</p>
+          <img src="/images/logo.jpg" alt="NexTime" className="h-24 mx-auto mb-3 rounded-2xl shadow-[0_0_40px_rgba(99,102,241,0.4)] ring-1 ring-white/10" />
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8">

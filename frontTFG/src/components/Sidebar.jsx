@@ -115,9 +115,8 @@ export default function Sidebar() {
 
   return (
     <aside className="w-60 bg-slate-900 flex flex-col h-screen sticky top-0 shrink-0">
-      <div className="px-5 py-5 border-b border-slate-700 shrink-0">
-        <h1 className="text-white font-bold text-lg tracking-tight">NexTime</h1>
-        <p className="text-slate-400 text-xs mt-0.5">Gestión de control horario</p>
+      <div className="py-5 border-b border-slate-700 shrink-0 flex justify-center">
+        <img src="/images/logo.jpg" alt="NexTime" className="h-12 rounded-xl brightness-110 mix-blend-lighten shadow-[0_0_18px_rgba(99,102,241,0.35)]" />
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto min-h-0">

@@ -35,7 +35,7 @@ export default function Dashboard() {
         setAbsences(absRes.data.data ?? []);
         setUserShifts(shiftsRes.data.data ?? []);
         setDays(daysRes.data.data ?? []);
-      } catch {/**/}
+      } catch {/**/ }
       finally { setLoading(false); }
     };
     fetchData();
@@ -65,7 +65,7 @@ export default function Dashboard() {
         const startMs = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
         const endMs = new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
         if (dayMs >= startMs && dayMs <= endMs) return absence;
-      } catch {/**/}
+      } catch {/**/ }
     }
     return null;
   }
@@ -100,7 +100,7 @@ export default function Dashboard() {
       message: 'Recuerda fichar la entrada. Estás dentro de tu horario de trabajo.',
     }).then(() => {
       sessionStorage.setItem(key, '1');
-    }).catch(() => {});
+    }).catch(() => { });
   }, [loading]);
 
   if (loading) {
@@ -114,7 +114,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-xl font-semibold text-gray-800">Bienvenido, {user?.name} {user?.last_name}</h3>
+        <h3 className="text-xl font-semibold text-gray-800">Bienvenido/a, {user?.name} {user?.last_name}</h3>
         <p className="text-gray-500 text-sm mt-0.5">
           {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </p>

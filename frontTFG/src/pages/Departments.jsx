@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   MdApartment, MdPerson, MdAdd, MdClose, MdEdit,
-  MdArrowBack, MdSearch, MdPersonAdd, MdSchedule, MdGroup,
+  MdSearch, MdPersonAdd, MdSchedule, MdGroup,
 } from 'react-icons/md';
 import api from '../api';
 
@@ -315,11 +315,6 @@ export default function Departments() {
     }
   };
 
-  const volverADepartamentos = () => {
-    setSelectedDept(null);
-    setDeptEmployees([]);
-    setBusqueda('');
-  };
 
   const baseManagers = (isSystemAdmin || !companyId ? allUsers : allUsers.filter((user) => !user.department || user.department.company_id === companyId))
     .filter((user) => ['manager', 'owner', 'hr'].includes(user.role?.name ?? ''));
@@ -431,7 +426,7 @@ export default function Departments() {
   // Si hay un departamento seleccionado mostramos su lista de empleados
   if (selectedDept) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-5 max-w-4xl mx-auto">
         {editUser && canEditEmployees && (
           <EditUserModal employee={editUser} rolesLista={rolesLista} deptsLista={deptsLista} defaultDeptId={selectedDept?.id} onClose={() => setEditUser(null)} onSaved={handleUserSaved} />
         )}
@@ -502,11 +497,8 @@ export default function Departments() {
           </div>
         )}
 
-        {/* Cabecera con botón volver */}
+        {/* Cabecera del departamento */}
         <div className="flex items-center gap-3">
-          <button onClick={volverADepartamentos} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 transition">
-            <MdArrowBack size={18} />
-          </button>
           <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center shrink-0">
             <MdApartment size={18} className="text-indigo-600" />
           </div>
@@ -598,7 +590,7 @@ export default function Departments() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">{visibleDepts.length} departamentos</p>
         {canManageDepts && (
