@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  MdDashboard, MdAccessTime, MdEventBusy, MdPeople, MdBusiness,
+  MdDashboard, MdAccessTime, MdEventBusy,
   MdApartment, MdSchedule, MdLogout, MdBeachAccess, MdHomeWork,
   MdContactSupport, MdWarning,
 } from 'react-icons/md';
@@ -17,17 +17,15 @@ const personalItems = [
 ];
 
 const gestionItems = [
-  { to: '/fichajes-gestion', icon: <MdAccessTime size={19} />, label: 'Fichajes', roles: ['admin', 'owner', 'manager', 'hr'] },
-  { to: '/ausencias-gestion', icon: <MdWarning size={19} />, label: 'Ausencias', roles: ['admin', 'owner', 'manager', 'hr'] },
-  { to: '/usuarios', icon: <MdPeople size={19} />, label: 'Usuarios', roles: ['admin'] },
-  { to: '/departamentos', icon: <MdApartment size={19} />, label: 'Departamentos', roles: ['admin', 'owner', 'hr'] },
-  { to: '/turnos', icon: <MdSchedule size={19} />, label: 'Turnos', roles: ['admin', 'owner', 'hr'] },
-  { to: '/empresas', icon: <MdBusiness size={19} />, label: 'Empresas', roles: ['admin'] },
-  { to: '/festivos', icon: <MdBeachAccess size={19} />, label: 'Festivos', roles: ['admin', 'owner', 'hr'] },
+  { to: '/fichajes-gestion', icon: <MdAccessTime size={19} />, label: 'Fichajes', roles: ['owner', 'manager', 'hr'] },
+  { to: '/ausencias-gestion', icon: <MdWarning size={19} />, label: 'Ausencias', roles: ['owner', 'manager', 'hr'] },
+  { to: '/departamentos', icon: <MdApartment size={19} />, label: 'Departamentos', roles: ['owner', 'hr'] },
+  { to: '/turnos', icon: <MdSchedule size={19} />, label: 'Turnos', roles: ['owner', 'hr'] },
+  { to: '/festivos', icon: <MdBeachAccess size={19} />, label: 'Festivos', roles: ['owner', 'hr'] },
 ];
 
 const roleLabels = {
-  admin: 'Administrador', owner: 'Dueño', manager: 'Gerente',
+  owner: 'Dueño', manager: 'Gerente',
   hr: 'Recursos Humanos', employee: 'Empleado',
 };
 
@@ -79,7 +77,7 @@ export default function Sidebar() {
         api.get(`/chat-messages?employee_id=${u.id}&company_id=${cId}`)
           .then((res) => {
             const msgs = res.data.data ?? [];
-            // sender_id !== u.id significa que el mensaje lo mandó RRHH, no el empleado
+            // si el remitente no es el propio usuario, el mensaje lo mandó RRHH
             setUnreadChat(msgs.filter((message) => !message.is_read && message.sender_id !== u.id).length);
           })
           .catch(() => {});

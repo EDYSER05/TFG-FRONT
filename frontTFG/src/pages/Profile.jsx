@@ -4,7 +4,6 @@ import { MdPerson, MdLock, MdCheckCircle, MdWarning } from 'react-icons/md';
 import api from '../api';
 
 const roleLabels = {
-  admin: 'Administrador',
   owner: 'Dueño',
   manager: 'Gerente',
   hr: 'Recursos Humanos',

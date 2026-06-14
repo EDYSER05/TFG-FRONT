@@ -1,16 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MdAccessTime, MdEventBusy, MdPending, MdWarning, MdCalendarMonth, MdCheckCircle, MdCancel } from 'react-icons/md';
 import api from '../api';
-import { getToday, parseDate, formatTime, DIAS_SEMANA, DIAS_ABREV } from '../utils/dates';
-
-function getMonday(date) {
-  const mondayDate = new Date(date);
-  const weekday = mondayDate.getDay();
-  const diff = weekday === 0 ? -6 : 1 - weekday;
-  mondayDate.setDate(mondayDate.getDate() + diff);
-  mondayDate.setHours(0, 0, 0, 0);
-  return mondayDate;
-}
+import { getToday, parseDate, formatTime, DIAS_SEMANA, DIAS_ABREV, getMonday, isDateInRange } from '../utils/dates';
 
 export default function Dashboard() {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -45,33 +36,26 @@ export default function Dashboard() {
   const pending = absences.filter((absence) => absence.status === 'pending').length;
   const approved = absences.filter((absence) => absence.status === 'approved').length;
 
+  // agrupa los turnos del usuario por índice de día para poder consultarlos fácilmente por fecha
   const shiftsByWeekday = {};
   userShifts.forEach((userShift) => {
-    const dayName = days.find((day) => day.id === userShift.day_id)?.name ?? '';
-    const weekdayIndex = DIAS_SEMANA[dayName];
-    if (weekdayIndex !== undefined) {
-      if (!shiftsByWeekday[weekdayIndex]) shiftsByWeekday[weekdayIndex] = [];
-      shiftsByWeekday[weekdayIndex].push(userShift);
-    }
+    const dayName = days.find((day) => day.id === userShift.day_id).name;
+    const weekdayIndex = DIAS_SEMANA[dayName]; // convierte "Lunes" a 1, "Martes" a 2, etc.
+    // si no hay un array para ese día lo inicializamos
+    if (!shiftsByWeekday[weekdayIndex]) shiftsByWeekday[weekdayIndex] = [];
+    shiftsByWeekday[weekdayIndex].push(userShift);
   });
 
+  // busca si el usuario tiene una ausencia activa en la fecha dada
   function getAbsenceForDay(date) {
-    const dayMs = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-    for (const absence of absences) {
-      if (absence.status === 'rejected') continue;
-      try {
-        const start = parseDate(absence.start_date);
-        const end = parseDate(absence.end_date);
-        const startMs = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
-        const endMs = new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
-        if (dayMs >= startMs && dayMs <= endMs) return absence;
-      } catch {/**/ }
-    }
-    return null;
+    return absences.find(
+      (absence) => absence.status !== 'rejected' && isDateInRange(date, absence.start_date, absence.end_date)
+    ) ?? null;
   }
 
   const today = new Date();
   const monday = getMonday(today);
+  // genera los 7 días de la semana empezando desde el lunes
   const weekDays = Array.from({ length: 7 }, (_, dayOffset) => {
     const date = new Date(monday);
     date.setDate(monday.getDate() + dayOffset);
@@ -80,16 +64,19 @@ export default function Dashboard() {
 
   const todayAbsence = getAbsenceForDay(today);
   const todayShifts = shiftsByWeekday[today.getDay()] ?? [];
+
+  // comprueba si ahora mismo el usuario debería estar trabajando según sus turnos de hoy
   const isWithinAnyShift = !todayAbsence && todayShifts.some((userShift) => {
     if (!userShift.shift) return false;
     const now = new Date();
     const [startHour, startMin] = userShift.shift.start_time.split(':').map(Number);
     const [endHour, endMin] = userShift.shift.end_time.split(':').map(Number);
     const nowMins = now.getHours() * 60 + now.getMinutes();
+    // convertimos todo a minutos para comparar horas fácilmente
     return nowMins >= startHour * 60 + startMin && nowMins <= endHour * 60 + endMin;
   });
 
-  // Notificación de recordatorio: una vez por día vía sessionStorage para no repetirla
+  // manda la notificación de recordatorio solo una vez por día usando sessionStorage como bandera
   useEffect(() => {
     if (loading || !user) return;
     if (!isWithinAnyShift || todayLog?.check_in) return;

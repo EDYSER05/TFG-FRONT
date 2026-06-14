@@ -3,10 +3,9 @@ import {
   MdApartment, MdBusiness, MdEmail, MdGroup, MdEventBusy,
 } from 'react-icons/md';
 import api from '../api';
-import { DIAS_SEMANA, parseDate } from '../utils/dates';
+import { DIAS_SEMANA, isDateInRange } from '../utils/dates';
 
 const roleLabels = {
-  admin: 'Administrador',
   owner: 'Dueño',
   manager: 'Gerente',
   hr: 'Recursos Humanos',
@@ -14,37 +13,31 @@ const roleLabels = {
 };
 
 const roleColors = {
-  admin: 'bg-red-100 text-red-700',
   owner: 'bg-purple-100 text-purple-700',
   manager: 'bg-blue-100 text-blue-700',
   hr: 'bg-teal-100 text-teal-700',
   employee: 'bg-gray-100 text-gray-600',
 };
 
+// Devuelve las iniciales de un usuario (nombre + apellido)
 function initials(user) {
   return `${user.name.charAt(0)}${user.last_name.charAt(0)}`.toUpperCase();
 }
 
-// Devuelve el estado de un compañero para hoy: si está de ausencia, trabajando, o libre
+// devuelve el estado de un compañero para hoy: si está de ausencia, trabajando, o libre
 function getMemberStatus(userId, allAbsences, shiftsByUser) {
-  const todayDate = new Date();
-  todayDate.setHours(0, 0, 0, 0);
+  const today = new Date();
 
-  const absence = allAbsences.find((absence) => {
-    if (absence.status === 'rejected' || absence.user_id !== userId) return false;
-    try {
-      const start = parseDate(absence.start_date);
-      const end = parseDate(absence.end_date);
-      return todayDate >= start && todayDate <= end;
-    } catch { return false; }
-  });
+  const absence = allAbsences.find(
+    (absence) => absence.status !== 'rejected' && absence.user_id === userId && isDateInRange(today, absence.start_date, absence.end_date)
+  );
 
   if (absence) {
     return { type: 'absence', label: absence.absence_type?.name ?? 'Ausencia', status: absence.status };
   }
 
   const shifts = shiftsByUser[userId] ?? [];
-  // userShift.day.js es el número de día JS (0=Dom...6=Sáb) que calculamos al cargar los datos
+  // filtramos los turnos del compañero para quedarnos solo con los que sean del día de hoy
   const todayShifts = shifts.filter((userShift) => userShift.day?.js === new Date().getDay());
   if (todayShifts.length > 0) {
     const times = todayShifts.map((userShift) => `${userShift.shift?.start_time.slice(0, 5)}–${userShift.shift?.end_time.slice(0, 5)}`).join(', ');
@@ -54,7 +47,8 @@ function getMemberStatus(userId, allAbsences, shiftsByUser) {
   return { type: 'free' };
 }
 
-function StatusBadge({ status }) {
+// Badge de estado de un compañero: ausencia, trabajando o libre
+function StatusColor({ status }) {
   if (status.type === 'absence') {
     const isPending = status.status === 'pending';
     return (
@@ -99,7 +93,7 @@ export default function MyDepartment() {
         setAllAbsences(absRes.data.data ?? []);
 
         const days = daysRes.data.data ?? [];
-        // Construimos un mapa user_id → turnos enriquecidos con el número de día JS para filtrar por hoy
+        // construimos un mapa de usuario a sus turnos, añadiendo el número de día para filtrar por hoy
         const byUser = {};
         for (const userShift of shiftsRes.data.data ?? []) {
           const dayName = days.find((day) => day.id === userShift.day_id)?.name ?? '';
@@ -196,7 +190,7 @@ export default function MyDepartment() {
                         {roleLabels[coworker.role.name] ?? coworker.role.name}
                       </span>
                     )}
-                    <StatusBadge status={memberStatus} />
+                    <StatusColor status={memberStatus} />
                   </div>
                 </div>
               );

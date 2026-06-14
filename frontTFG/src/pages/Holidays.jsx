@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { MdBeachAccess, MdAdd, MdClose, MdEdit, MdDelete, MdChevronLeft, MdChevronRight } from 'react-icons/md';
+import { MdBeachAccess, MdAdd, MdEdit, MdDelete, MdChevronLeft, MdChevronRight } from 'react-icons/md';
 import api from '../api';
-import { toInputDate, parseDate } from '../utils/dates';
+import { toInputDate, parseDate, toMidnightTimestamp } from '../utils/dates';
+import HolidayModal from '../components/Holidays/HolidayModal';
+import ConfirmDeleteModal from '../components/Holidays/ConfirmDeleteModal';
 
 const emptyForm = { name: '', date: '' };
 
 export default function Holidays() {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const role = user ? user.role.name : '';
-  const canManage = ['admin', 'owner', 'hr'].includes(role);
+  const canManage = ['owner', 'hr'].includes(role);
 
   const [year, setYear] = useState(new Date().getFullYear());
   const [holidays, setHolidays] = useState([]);
@@ -79,10 +81,7 @@ export default function Holidays() {
     try { return parseDate(holidayA.date).getTime() - parseDate(holidayB.date).getTime(); } catch { return 0; }
   });
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  const todayTimestamp = toMidnightTimestamp(new Date());
 
   if (loading) {
     return (
@@ -110,44 +109,11 @@ export default function Holidays() {
       {deleteError && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{deleteError}</div>}
 
       {modal !== null && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={closeModal}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-800">{isEditMode ? 'Editar festivo' : 'Nuevo festivo'}</h3>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><MdClose size={20} /></button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {formError && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                <input type="text" required value={form.name} onChange={(e) => setForm((prevForm) => ({ ...prevForm, name: e.target.value }))} className={inputCls} placeholder="Ej: Día de la Constitución" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-                <input type="date" required value={form.date} onChange={(e) => setForm((prevForm) => ({ ...prevForm, date: e.target.value }))} className={inputCls} />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={closeModal} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancelar</button>
-                <button type="submit" disabled={submitting} className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-                  {submitting ? (isEditMode ? 'Guardando...' : 'Creando...') : (isEditMode ? 'Guardar cambios' : 'Crear festivo')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <HolidayModal isEditMode={isEditMode} form={form} setForm={setForm} formError={formError} submitting={submitting} onClose={closeModal} onSubmit={handleSubmit} />
       )}
 
       {confirmDeleteId !== null && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setConfirmDeleteId(null)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold text-gray-800">¿Eliminar festivo?</h3>
-            <p className="text-sm text-gray-500">Esta acción no se puede deshacer.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmDeleteId(null)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancelar</button>
-              <button onClick={() => handleDelete(confirmDeleteId)} className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">Eliminar</button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal onClose={() => setConfirmDeleteId(null)} onConfirm={() => handleDelete(confirmDeleteId)} />
       )}
 
       <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-50">
@@ -163,9 +129,9 @@ export default function Holidays() {
             let isToday = false;
             try {
               fecha = parseDate(holiday.date);
-              const holidayMs = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()).getTime();
-              isPast = holidayMs < today.getTime();
-              isToday = holidayMs === today.getTime();
+              const holidayTimestamp = toMidnightTimestamp(fecha);
+              isPast = holidayTimestamp < todayTimestamp;
+              isToday = holidayTimestamp === todayTimestamp;
             } catch { /* ignorar error de fecha */ }
             return (
               <div key={holiday.id} className={`flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors ${isPast ? 'opacity-50' : ''}`}>

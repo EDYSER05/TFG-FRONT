@@ -1,100 +1,11 @@
 // Página de fichajes: fichar entrada/salida, historial y reportar incidencias
 import { useEffect, useState } from 'react';
-import { MdLogin, MdLogout, MdRefresh, MdWarning, MdClose, MdChevronLeft, MdChevronRight } from 'react-icons/md';
-
-const PER_PAGE = 10;
+import { MdLogin, MdLogout, MdRefresh, MdWarning, MdChevronLeft, MdChevronRight } from 'react-icons/md';
 import api from '../api';
 import { getToday, getTodayISO, getNow, formatTime, calcDuration } from '../utils/dates';
+import IssueModal from '../components/TimeLogs/IssueModal';
 
-// Modal para reportar una incidencia en un fichaje concreto
-function IssueModal({ log, user, onClose }) {
-  const [issueTypes, setIssueTypes] = useState([]);
-  const [issueTypeId, setIssueTypeId] = useState('');
-  const [description, setDescription] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [done, setDone] = useState(false);
-
-  // Cargamos los tipos de incidencia al abrir el modal
-  useEffect(() => {
-    const fetchTypes = async () => {
-      try {
-        const res = await api.get('/issue-types');
-        setIssueTypes(res.data.data ?? []);
-      } catch {
-        // Si falla no bloqueamos el modal
-      }
-    };
-    fetchTypes();
-    
-  }, []);
-
-  // Función para enviar la incidencia a la API
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!issueTypeId) { setError('Selecciona un tipo de incidencia'); return; }
-    setError('');
-    setSubmitting(true);
-    try {
-      await api.post('/time-log-issues', {
-        time_log_id: log.id,
-        user_id: user?.id,
-        issue_type_id: Number(issueTypeId),
-        description: description || undefined,
-      });
-      setDone(true);
-    } catch (err) {
-      setError(err.response?.data?.msg ?? 'Error al crear la incidencia');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div>
-            <h3 className="font-semibold text-gray-800">Abrir incidencia</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Fichaje del {log.date}</p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><MdClose size={20} /></button>
-        </div>
-        {done ? (
-          <div className="p-6 text-center space-y-3">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-              <MdWarning size={22} className="text-green-600" />
-            </div>
-            <p className="font-medium text-gray-800">Incidencia enviada</p>
-            <p className="text-sm text-gray-500">El equipo de gestión revisará tu incidencia.</p>
-            <button onClick={onClose} className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition">Cerrar</button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de incidencia</label>
-              <select value={issueTypeId} onChange={(e) => setIssueTypeId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value="">Seleccionar tipo</option>
-                {issueTypes.map((issueType) => <option key={issueType.id} value={issueType.id}>{issueType.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Descripción <span className="text-gray-400 font-normal">(opcional)</span></label>
-              <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" placeholder="Explica brevemente la incidencia..." />
-            </div>
-            <div className="flex gap-3 pt-1">
-              <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancelar</button>
-              <button type="submit" disabled={submitting} className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-                {submitting ? 'Enviando...' : 'Enviar incidencia'}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-}
+const PER_PAGE = 10;
 
 export default function TimeLogs() {
   // Leemos el usuario desde localStorage
@@ -113,7 +24,6 @@ export default function TimeLogs() {
   // Cargamos los fichajes del usuario al montar el componente
   useEffect(() => {
     if (!user) return;
-
     const fetchLogs = async () => {
       setLoading(true);
       try {
@@ -125,9 +35,7 @@ export default function TimeLogs() {
         setLoading(false);
       }
     };
-
     fetchLogs();
-    
   }, []);
 
   // Buscamos el fichaje de hoy para mostrar el estado actual
@@ -244,59 +152,59 @@ export default function TimeLogs() {
           <h4 className="font-semibold text-gray-700">Historial de fichajes</h4>
         </div>
         <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                <tr>
-                  <th className="px-5 py-3 text-left">Fecha</th>
-                  <th className="px-5 py-3 text-left">Entrada</th>
-                  <th className="px-5 py-3 text-left">Salida</th>
-                  <th className="px-5 py-3 text-left">Duración</th>
-                  <th className="px-5 py-3 text-left">Estado</th>
-                  <th className="px-5 py-3 text-left"></th>
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+              <tr>
+                <th className="px-5 py-3 text-left">Fecha</th>
+                <th className="px-5 py-3 text-left">Entrada</th>
+                <th className="px-5 py-3 text-left">Salida</th>
+                <th className="px-5 py-3 text-left">Duración</th>
+                <th className="px-5 py-3 text-left">Estado</th>
+                <th className="px-5 py-3 text-left"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {logs.length === 0 && (
+                <tr><td colSpan={6} className="px-5 py-6 text-center text-gray-400">No hay fichajes registrados</td></tr>
+              )}
+              {paginatedLogs.map((log) => (
+                <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-5 py-3 text-gray-700 font-medium">{log.date}</td>
+                  <td className="px-5 py-3 text-green-600 font-medium">{formatTime(log.check_in)}</td>
+                  <td className="px-5 py-3 text-red-600 font-medium">{formatTime(log.check_out)}</td>
+                  <td className="px-5 py-3 text-gray-600">{calcDuration(log.check_in, log.check_out)}</td>
+                  <td className="px-5 py-3">
+                    {!log.check_in ? (
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">Sin entrada</span>
+                    ) : !log.check_out ? (
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">En curso</span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Completado</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3">
+                    <button onClick={() => setIssueLog(log)} className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 font-medium transition">
+                      <MdWarning size={14} /> Incidencia
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {logs.length === 0 && (
-                  <tr><td colSpan={6} className="px-5 py-6 text-center text-gray-400">No hay fichajes registrados</td></tr>
-                )}
-                {paginatedLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-3 text-gray-700 font-medium">{log.date}</td>
-                    <td className="px-5 py-3 text-green-600 font-medium">{formatTime(log.check_in)}</td>
-                    <td className="px-5 py-3 text-red-600 font-medium">{formatTime(log.check_out)}</td>
-                    <td className="px-5 py-3 text-gray-600">{calcDuration(log.check_in, log.check_out)}</td>
-                    <td className="px-5 py-3">
-                      {!log.check_in ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">Sin entrada</span>
-                      ) : !log.check_out ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">En curso</span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Completado</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3">
-                      <button onClick={() => setIssueLog(log)} className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 font-medium transition">
-                        <MdWarning size={14} /> Incidencia
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
-              <span className="text-xs text-gray-400">{logs.length} registros · página {page} de {totalPages}</span>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))} disabled={page === 1} className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition">
-                  <MdChevronLeft size={16} />
-                </button>
-                <button onClick={() => setPage((currentPage) => Math.min(totalPages, currentPage + 1))} disabled={page === totalPages} className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition">
-                  <MdChevronRight size={16} />
-                </button>
-              </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
+            <span className="text-xs text-gray-400">{logs.length} registros · página {page} de {totalPages}</span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition">
+                <MdChevronLeft size={16} />
+              </button>
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition">
+                <MdChevronRight size={16} />
+              </button>
             </div>
-          )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -2,18 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdNotifications, MdDoneAll, MdCircle } from 'react-icons/md';
 import api from '../api';
-import { parseDate } from '../utils/dates';
-
-function formatDateTime(dateTimeStr) {
-  if (!dateTimeStr) return '—';
-  try {
-    const date = parseDate(dateTimeStr);
-    if (isNaN(date.getTime())) return '—';
-    return date.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
-  } catch {
-    return '—';
-  }
-}
+import { formatDateTime } from '../utils/dates';
 
 export default function Notifications() {
   const navigate = useNavigate();
@@ -21,7 +10,7 @@ export default function Notifications() {
   const storedUser = localStorage.getItem('user');
   const user = storedUser ? JSON.parse(storedUser) : null;
   const role = user?.role?.name ?? '';
-  const isManagement = ['admin', 'owner', 'manager', 'hr'].includes(role);
+  const isManagement = ['owner', 'manager', 'hr'].includes(role);
 
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
