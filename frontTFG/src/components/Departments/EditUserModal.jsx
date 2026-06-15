@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MdClose, MdEdit } from 'react-icons/md';
 import api from '../../api';
+import { toInputDate } from '../../utils/dates';
 
 const roleLabels = {
   owner: 'Dueño',
@@ -14,7 +15,7 @@ export default function EditUserModal({ employee, rolesLista, deptsLista, defaul
     name: employee.name,
     last_name: employee.last_name,
     email: employee.email,
-    hire_date: employee.hire_date ? employee.hire_date.split('-').reverse().join('-') : '',
+    hire_date: toInputDate(employee.hire_date),
     role_id: employee.role ? String(employee.role.id) : '',
     department_id: employee.department ? String(employee.department.id) : (defaultDeptId ? String(defaultDeptId) : ''),
     active: employee.active,

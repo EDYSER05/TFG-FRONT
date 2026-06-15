@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { MdClose, MdEdit, MdCheckCircle } from 'react-icons/md';
 import api from '../../api';
-import { calcDuration } from '../../utils/dates';
+import { calcDuration, toInputTime } from '../../utils/dates';
 
 export default function EditTimeLogModal({ log, issue, onClose, onSaved, onIssueUpdated }) {
-  const [checkIn, setCheckIn] = useState(log.check_in ? log.check_in.split(' ')[1].slice(0, 5) : '');
-  const [checkOut, setCheckOut] = useState(log.check_out ? log.check_out.split(' ')[1].slice(0, 5) : '');
+  const [checkIn, setCheckIn] = useState(log.check_in ? toInputTime(log.check_in) : '');
+  const [checkOut, setCheckOut] = useState(log.check_out ? toInputTime(log.check_out) : '');
   const [resolved, setResolved] = useState(issue ? issue.resolved : false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
