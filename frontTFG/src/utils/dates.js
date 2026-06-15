@@ -95,6 +95,14 @@ export function toInputDate(s) {
   return partes[0].length === 2 ? `${partes[2]}-${partes[1]}-${partes[0]}` : s;
 }
 
+// convierte una hora del backend al formato que necesita el campo de hora del formulario
+// el backend devuelve HH:MM:SS pero los inputs de hora solo aceptan HH:MM
+// Ej de output: "08:45"
+export function toInputTime(s) {
+  if (!s) return '';
+  return s.slice(0, 5);
+}
+
 // convierte una fecha a número eliminando la hora para poder comparar solo el día
 // necesario porque comparar fechas con horas distintas da resultados incorrectos
 export function toMidnightTimestamp(date) {
